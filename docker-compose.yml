@@ -1,0 +1,88 @@
+services:
+  mlflow:
+    image: python:3.12-slim
+    container_name: mlflow-server
+    working_dir: /app
+    volumes:
+      - ./mlflow:/mlflow
+    command:
+      [
+        "sh", "-c",
+        "pip install --no-cache-dir setuptools mlflow==2.15.1 && \
+         mlflow server \
+           --backend-store-uri sqlite:////mlflow/mlflow.db \
+           --artifacts-destination /mlflow/mlruns \
+           --serve-artifacts \
+           --host 0.0.0.0 \
+           --port 5000"
+      ]
+    ports:
+      - "5000:5000"
+    networks:
+      - mlops
+
+  api:
+    build:
+      context: .
+      dockerfile: dockerfile
+    container_name: wine-api
+    environment:
+      MLFLOW_TRACKING_URI: http://mlflow:5000
+      MODEL_NAME: wineclf_rf
+    depends_on:
+      - mlflow
+    ports:
+      - "8000:8000"
+    networks:
+      - mlops
+
+  streamlit:
+    build:
+      context: .
+      dockerfile: dockerfile
+    container_name: wine-streamlit
+    command: >
+      sh -c "
+        streamlit run streamlit_app.py
+          --server.port 8501
+          --server.address 0.0.0.0
+      "
+    environment:
+      MLFLOW_TRACKING_URI: http://mlflow:5000
+      MODEL_NAME: wineclf_rf
+    depends_on:
+      - mlflow
+    ports:
+      - "8501:8501"
+    volumes:
+      - ./artifacts:/app/artifacts
+    networks:
+      - mlops
+
+  airflow:
+    build:
+      context: .
+      dockerfile: Dockerfile.airflow
+    container_name: airflow
+    user: "0:0"
+    environment:
+      AIRFLOW__CORE__EXECUTOR: SequentialExecutor
+      AIRFLOW__CORE__LOAD_EXAMPLES: "False"
+      AIRFLOW__WEBSERVER__DEFAULT_UI_TIMEZONE: Europe/Budapest
+      COMPOSE_NETWORK: mlops_default
+      HOST_DATA_DIR: /home/gregorius/projects/ml-wine/data
+      MLFLOW_TRACKING_URI: http://mlflow:5000
+    volumes:
+      - ./airflow/dags:/opt/airflow/dags
+      - ./airflow/logs:/opt/airflow/logs
+      - ./airflow/plugins:/opt/airflow/plugins
+      - /var/run/docker.sock:/var/run/docker.sock
+    command: ["airflow", "standalone"]
+    ports:
+      - "8080:8080"
+    networks:
+      - mlops
+
+networks:
+  mlops:
+    name: mlops_default

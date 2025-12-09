@@ -1,0 +1,15 @@
+.venv/
+__pycache__/
+.ipynb_checkpoints/
+mlruns/
+mlflow/
+mlflow.db
+artifacts/
+airflow/logs/
+airflow/plugins/
+airflow.cfg
+*.db
+*.sqlite
+*.pkl
+*.png
+.env

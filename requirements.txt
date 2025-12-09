@@ -1,0 +1,12 @@
+pandas
+numpy
+scikit-learn
+matplotlib
+seaborn
+mlflow==2.15.1
+fastapi
+uvicorn[standard]
+evidently
+streamlit
+sniffio
+setuptools
